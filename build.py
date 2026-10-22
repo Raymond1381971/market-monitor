@@ -236,7 +236,7 @@ def build_portfolio(h: pd.DataFrame, prices: dict[str, pd.Series], bench_w: dict
     if priced.empty and manual.empty:
         return None
 
-    frame = pd.DataFrame({t: prices[t] for t in priced["ticker"]})
+    frame = pd.DataFrame({t: prices[t] for t in priced["ticker"].unique()})
     if frame.empty:
         return None
     frame = frame[frame.index.dayofweek < 5].ffill()
@@ -245,7 +245,7 @@ def build_portfolio(h: pd.DataFrame, prices: dict[str, pd.Series], bench_w: dict
     cutoff = frame.index.max() - pd.DateOffset(years=MARKET_YEARS, days=15)
     frame = frame.loc[frame.index >= cutoff]
 
-    values = frame * priced.set_index("ticker")["quantity"].reindex(frame.columns).values
+    values = pd.DataFrame({i: frame[r["ticker"]] * float(r["quantity"]) for i, r in priced.iterrows()}, index=frame.index)
     manual_value = float(manual["value"].fillna(manual["quantity"]).sum()) if len(manual) else 0.0
     total = values.sum(axis=1) + manual_value
     scale = float(total.iloc[-1])
@@ -262,8 +262,8 @@ def build_portfolio(h: pd.DataFrame, prices: dict[str, pd.Series], bench_w: dict
         bench = (1 + brets).cumprod()
 
     holdings = []
-    for _, row in priced.iterrows():
-        v = values[row["ticker"]] / scale
+    for i, row in priced.iterrows():
+        v = values[i] / scale
         holdings.append({"id": row["ticker"],
                          "name": row["name"] if isinstance(row["name"], str) else row["ticker"],
                          "cls": row["asset_class"], "w": sig(v.iloc[-1]),
