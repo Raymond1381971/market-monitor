@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>__TITLE__</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root {
+  --paper: #F4F6F7; --surface: #FFFFFF; --ink: #13212E; --muted: #5B6873;
+  --rule: #D6DDE2; --gain: #1D5FA6; --loss: #C24A12; --port: #6A4C9C; --bench: #8A96A0;
+  --sans: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121A22; --surface: #19232D; --ink: #E4E9ED; --muted: #95A3AE;
+    --rule: #2B3843; --gain: #6FA8E6; --loss: #F0894F; --port: #B39AE0; --bench: #7D8B96;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121A22; --surface: #19232D; --ink: #E4E9ED; --muted: #95A3AE;
+  --rule: #2B3843; --gain: #6FA8E6; --loss: #F0894F; --port: #B39AE0; --bench: #7D8B96;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 72px); }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 15px/1.45 var(--sans); font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--gain); }
+:focus-visible { outline: 2px solid var(--gain); outline-offset: 2px; }
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule);
+}
+.top .wrap { display: flex; align-items: center; gap: 20px; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; }
+.brand { font: 600 22px/1.1 var(--serif); letter-spacing: -0.01em; margin: 0; }
+.asof { color: var(--muted); font-size: 14px; }
+.ruler { margin-left: auto; display: flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.ruler button {
+  font: 600 13px/1 var(--sans); color: var(--muted); background: none; border: 0;
+  padding: 9px 12px; cursor: pointer; border-right: 1px solid var(--rule); min-width: 44px;
+}
+.ruler button:last-child { border-right: 0; }
+.ruler button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.ruler button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+
+.demo-banner { background: var(--loss); color: #fff; text-align: center; padding: 6px 12px; font-weight: 600; font-size: 14px; }
+
+/* Hero heatmap */
+.hero { padding: 28px 0 8px; }
+.hero h2 { font: 600 30px/1.15 var(--serif); margin: 0 0 18px; letter-spacing: -0.015em; }
+.heat { display: grid; grid-template-columns: 160px 1fr; gap: 6px 14px; align-items: start; }
+.heat .rowlabel { font-weight: 600; font-size: 14px; padding-top: 8px; color: var(--muted); }
+.heat .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 4px; }
+.cell {
+  font: inherit; text-align: left; border: 0; border-radius: 4px; padding: 7px 9px 8px; cursor: pointer;
+  background: var(--surface); color: var(--ink); min-height: 50px; display: flex; flex-direction: column; justify-content: space-between;
+}
+.cell .n { font-size: 12.5px; line-height: 1.2; }
+.cell .x { font-weight: 700; font-size: 15px; }
+.cell.na { cursor: default; color: var(--muted); }
+.legend { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-top: 12px; }
+.legend .bar { width: 180px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--loss), var(--surface), var(--gain)); border: 1px solid var(--rule); }
+
+/* Sections */
+section.grp { padding: 36px 0 8px; border-top: 1px solid var(--rule); margin-top: 28px; }
+section.grp > h2 { font: 600 22px/1.2 var(--serif); margin: 0 0 12px; }
+section.grp > h2 + .note { margin-top: -8px; }
+.note { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; max-width: 78ch; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.cols.wide-left { grid-template-columns: 3fr 2fr; }
+.panel h3 { font: 600 15px/1.3 var(--sans); margin: 0 0 8px; }
+.chart { width: 100%; min-height: 260px; }
+.solo { max-width: 760px; }
+.pair { align-items: start; }
+.pair > section.grp { min-width: 0; }
+.caption { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+
+table.lv { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.lv th { text-align: right; color: var(--muted); font-weight: 500; font-size: 12.5px; padding: 0 8px 6px; border-bottom: 1px solid var(--rule); }
+table.lv th:first-child, table.lv td:first-child { text-align: left; padding-left: 0; }
+table.lv td { padding: 7px 8px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+table.lv td:first-child { white-space: normal; }
+table.lv tr.click { cursor: pointer; }
+table.lv tr.click:hover td { background: var(--surface); }
+table.lv td.l, table.lv th.l { text-align: left; }
+td.spark { width: 130px; }
+.pos { color: var(--gain); } .neg { color: var(--loss); }
+.stale { color: var(--muted); font-size: 12.5px; }
+.tablewrap { overflow-x: auto; }
+
+/* Macro tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0; border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.tile { padding: 14px 16px 12px; border: 0; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); cursor: pointer; background: none; font: inherit; color: inherit; text-align: left; }
+.tile:hover { background: var(--surface); }
+.tile .n { font-size: 13.5px; color: var(--muted); }
+.tile .v { font: 600 26px/1.15 var(--sans); margin: 4px 0 2px; }
+.tile .p { font-size: 12.5px; color: var(--muted); }
+
+/* Portfolio */
+.kpis { display: flex; gap: 36px; flex-wrap: wrap; margin: 4px 0 20px; }
+.kpi .l { color: var(--muted); font-size: 13.5px; }
+.kpi .v { font: 600 30px/1.1 var(--sans); }
+.alloc { display: flex; height: 14px; border-radius: 3px; overflow: hidden; margin: 8px 0 10px; }
+.alloc span { display: block; height: 100%; }
+.alloc-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.alloc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.holdings { max-height: 420px; overflow: auto; }
+.empty { color: var(--muted); max-width: 70ch; }
+.warn { color: var(--loss); font-size: 13.5px; }
+
+footer { color: var(--muted); font-size: 13px; padding: 40px 0 48px; border-top: 1px solid var(--rule); margin-top: 40px; }
+footer p { margin: 0 0 6px; max-width: 90ch; }
+
+/* Detail dialog */
+dialog {
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink);
+  width: min(880px, calc(100vw - 32px)); padding: 20px 22px; 
+}
+dialog::backdrop { background: rgba(10, 18, 26, 0.45); }
+dialog h2 { font: 600 22px/1.2 var(--serif); margin: 0 30px 2px 0; }
+dialog .close { position: absolute; top: 12px; right: 12px; border: 0; background: none; color: var(--muted); font-size: 22px; cursor: pointer; width: 36px; height: 36px; }
+.hz { display: grid; grid-template-columns: repeat(8, 1fr); border: 1px solid var(--rule); border-radius: 6px; margin: 14px 0; overflow: hidden; }
+.hz button { font: 600 14px/1.3 var(--sans); color: var(--ink); background: none; border: 0; padding: 8px 6px; text-align: center; border-right: 1px solid var(--rule); cursor: pointer; }
+.hz button:last-child { border-right: 0; }
+.hz button small { display: block; color: var(--muted); font-weight: 500; font-size: 12px; }
+.hz button[aria-pressed="true"] { background: var(--surface); box-shadow: inset 0 -2px 0 var(--ink); }
+.hz button:hover { background: var(--surface); }
+
+@media (max-width: 860px) {
+  .cols, .cols.wide-left { grid-template-columns: 1fr; }
+  .heat { grid-template-columns: 1fr; }
+  .heat .rowlabel { padding-top: 10px; }
+  .ruler { margin-left: 0; width: 100%; }
+  .ruler button { flex: 1; min-width: 0; padding: 10px 0; }
+  .hz { grid-template-columns: repeat(4, 1fr); }
+  .hz button:nth-child(4) { border-right: 0; }
+  .hz button:nth-child(-n+4) { border-bottom: 1px solid var(--rule); }
+  .top .wrap { gap: 6px 12px; padding-top: 8px; padding-bottom: 8px; }
+  .brand { font-size: 19px; }
+  .hero h2 { font-size: 25px; }
+  .wrap { padding: 0 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div id="banner"></div>
+<header class="top"><div class="wrap">
+  <h1 class="brand" id="title"></h1>
+  <span class="asof" id="asof"></span>
+  <div class="ruler" role="group" aria-label="Time horizon" id="ruler"></div>
+</div></header>
+
+<main class="wrap">
+  <div class="hero">
+    <h2 id="heroTitle"></h2>
+    <div class="heat" id="heat"></div>
+    <div class="legend"><span id="legLo"></span><span class="bar"></span><span id="legHi"></span><span>Select any cell for its chart.</span></div>
+  </div>
+  <div id="sections"></div>
+</main>
+<footer><div class="wrap" id="foot"></div></footer>
+
+<dialog id="detail" aria-labelledby="dTitle">
+  <button class="close" aria-label="Close" onclick="this.closest('dialog').close()">×</button>
+  <h2 id="dTitle"></h2>
+  <div class="asof" id="dSub"></div>
+  <div class="hz" id="dHz"></div>
+  <div class="chart" id="dChart" style="height:340px"></div>
+  <div class="caption" id="dCap"></div>
+</dialog>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(() => {
+"use strict";
+const D = JSON.parse(document.getElementById("data").textContent);
+const DAY = 86400000;
+const HORIZONS = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y", "5Y"];
+const HLABEL = { "1D": "past day", "1W": "past week", "1M": "past month", "3M": "past three months",
+  "YTD": "year to date", "1Y": "past year", "3Y": "past three years", "5Y": "past five years" };
+const ITEMS = {};
+D.groups.forEach(g => (g.items || []).forEach(it => { ITEMS[it.id] = Object.assign({ group: g }, it); }));
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let H = "YTD";
+let charts = [];
+
+// ---------- helpers ----------
+const $ = (s, el = document) => el.querySelector(s);
+const el = (tag, attrs = {}, html) => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const dateOf = d => new Date(d * DAY);
+const fmtDate = d => dateOf(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+function period(d, freq) {
+  const x = dateOf(d);
+  if (freq === "m") return x.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  if (freq === "q") return "Q" + (Math.floor(x.getUTCMonth() / 3) + 1) + " " + x.getUTCFullYear();
+  if (freq === "w") return "Week of " + x.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return fmtDate(d);
+}
+function idxAtOrBefore(t, day) {
+  let lo = 0, hi = t.length - 1, ans = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (t[m] <= day) { ans = m; lo = m + 1; } else hi = m - 1; }
+  return ans;
+}
+function monthsBack(asOf, k) {
+  const d = dateOf(asOf), day = d.getUTCDate();
+  const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - k, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  return Math.floor(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, last)) / DAY);
+}
+function horizonStart(h, asOf = D.as_of) {
+  switch (h) {
+    case "1W": return asOf - 7;
+    case "1M": return monthsBack(asOf, 1);
+    case "3M": return monthsBack(asOf, 3);
+    case "YTD": return Math.floor(Date.UTC(dateOf(asOf).getUTCFullYear() - 1, 11, 31) / DAY);
+    case "1Y": return monthsBack(asOf, 12);
+    case "3Y": return monthsBack(asOf, 36);
+    case "5Y": return monthsBack(asOf, 60);
+    default: return asOf - 1;
+  }
+}
+// start index for a horizon on a given time array; -1 if history is too short
+function startIndex(t, h) {
+  if (h === "1D") return t.length >= 2 ? t.length - 2 : -1;
+  const s = horizonStart(h), i = idxAtOrBefore(t, s);
+  if (i < 0) return -1;
+  if (s - t[i] > 10 && h !== "YTD") return -1;
+  return i;
+}
+// chart window: short horizons are shown over a month so the line has shape
+const chartStart = (h, minH = "1M") => Math.min(horizonStart(h), horizonStart(minH));
+function windowNote(h, minH = "1M") {
+  return horizonStart(h) > horizonStart(minH) ? `Chart shows the ${HLABEL[minH]}.` : "";
+}
+
+function change(id, h) {
+  const it = ITEMS[id], s = D.series[id];
+  if (!s) return null;
+  const e = s.t.length - 1, i = startIndex(s.t, h);
+  if (i < 0 || i >= e) return null;
+  const v0 = s.v[i], v1 = s.v[e];
+  if (v0 == null || v1 == null) return null;
+  if (it.kind === "price") return v0 ? (v1 / v0 - 1) * 100 : null;
+  if (it.kind === "yield") return (v1 - v0) * 100;
+  return v1 - v0;
+}
+const unitOf = it => it.kind === "price" ? "%" : (it.kind === "yield" || it.kind === "spread") ? "bp" : "";
+// signed number; the sign follows the rounded value so tiny moves never show as "−0"
+function signed(x, dec, suffix = "") {
+  if (x == null || !isFinite(x)) return "–";
+  const s = Math.abs(x).toFixed(dec);
+  const sgn = +s === 0 ? "" : x > 0 ? "+" : "−";
+  return sgn + s + suffix;
+}
+function fmtChange(x, it, h = H) {
+  if (x == null) return "–";
+  const u = unitOf(it), a = Math.abs(x);
+  if (u === "%") return signed(x, h === "1D" || h === "1W" || a < 1 ? 2 : 1, "%");
+  if (u === "bp") return signed(x, 0, " bp");
+  return signed(x, it.decimals ?? 2);
+}
+function fmtLevel(v, it) {
+  if (v == null) return "–";
+  const d = it.decimals ?? (Math.abs(v) >= 1000 ? 0 : 2);
+  const s = v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return it.unit === "%" ? s + "%" : it.unit === "bp" ? s + " bp" : it.unit === "k" ? s + "k" : s;
+}
+const signClass = x => x == null ? "" : x > 0 ? "pos" : x < 0 ? "neg" : "";
+const textClass = t => t[0] === "+" ? "pos" : t[0] === "−" ? "neg" : "";
+const last = id => { const s = D.series[id]; return s ? s.v[s.v.length - 1] : null; };
+const lastDay = id => { const s = D.series[id]; return s ? s.t[s.t.length - 1] : null; };
+
+function heatColor(x, scale) {
+  if (x == null) return { bg: "var(--surface)", fg: "var(--muted)" };
+  const k = Math.min(Math.abs(x) / scale, 1);
+  const pct = Math.round(8 + k * 82);
+  const c = x >= 0 ? "var(--gain)" : "var(--loss)";
+  return { bg: `color-mix(in oklab, ${c} ${pct}%, var(--surface))`, fg: k > 0.55 ? "var(--paper)" : "var(--ink)" };
+}
+function sparkline(id, h, w = 120, hgt = 28, minH = "1M") {
+  const s = D.series[id]; if (!s) return "";
+  let i = idxAtOrBefore(s.t, chartStart(h, minH)); if (i < 0) i = 0;
+  const vs = s.v.slice(i).filter(v => v != null); if (vs.length < 2) return "";
+  const lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
+  const pts = vs.map((v, j) => `${(j / (vs.length - 1) * (w - 4) + 2).toFixed(1)},${(hgt - 3 - (v - lo) / r * (hgt - 6)).toFixed(1)}`);
+  const [lx, ly] = pts[pts.length - 1].split(",");
+  return `<svg width="${w}" height="${hgt}" viewBox="0 0 ${w} ${hgt}" aria-hidden="true"><polyline points="${pts.join(" ")}" fill="none" stroke="var(--muted)" stroke-width="1.3"/><circle cx="${lx}" cy="${ly}" r="2.4" fill="var(--ink)"/></svg>`;
+}
+
+// ---------- ECharts base ----------
+function baseOpts() {
+  const ink = css("--ink"), muted = css("--muted"), rule = css("--rule");
+  return {
+    animation: !reduceMotion, animationDuration: 300,
+    textStyle: { fontFamily: css("--sans"), color: ink },
+    grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+    tooltip: { trigger: "axis", backgroundColor: css("--surface"), borderColor: rule, textStyle: { color: ink } },
+    _c: { ink, muted, rule }
+  };
+}
+function mountChart(node, opts, height) {
+  if (height) node.style.height = height + "px";
+  const c = echarts.init(node, null, { renderer: "svg" });
+  delete opts._c;
+  c.setOption(opts);
+  charts.push(c);
+  return c;
+}
+function barChart(node, ids) {
+  const rows = ids.map(id => ({ id, name: ITEMS[id].name, x: change(id, H) })).filter(r => r.x != null).sort((a, b) => a.x - b.x);
+  const b = baseOpts(), gain = css("--gain"), loss = css("--loss");
+  const opts = Object.assign(b, {
+    tooltip: Object.assign(b.tooltip, { trigger: "item", formatter: p => `${esc(p.name)}<br><b>${fmtChange(p.value, ITEMS[rows[p.dataIndex].id])}</b>` }),
+    xAxis: { type: "value", axisLabel: { color: b._c.muted, formatter: v => v + "%" }, splitLine: { lineStyle: { color: b._c.rule } } },
+    yAxis: { type: "category", data: rows.map(r => r.name), axisLabel: { color: b._c.ink, fontSize: 12.5 }, axisLine: { lineStyle: { color: b._c.rule } }, axisTick: { show: false } },
+    series: [{ type: "bar", barWidth: "62%", data: rows.map(r => ({ value: +r.x.toFixed(3), itemStyle: { color: r.x >= 0 ? gain : loss, borderRadius: 2 } })),
+      label: { show: true, position: "right", color: b._c.ink, fontSize: 12, formatter: p => fmtChange(p.value, ITEMS[rows[p.dataIndex].id]) } }]
+  });
+  opts.grid.right = 56; opts.grid.left = 24;
+  const c = mountChart(node, opts, Math.max(180, rows.length * 26 + 40));
+  c.on("click", p => openDetail(rows[p.dataIndex].id));
+  return rows.length;
+}
+function indexedChart(node, ids) {
+  const b = baseOpts(), palette = [css("--ink"), css("--gain"), css("--loss"), css("--port"), css("--bench"), "#3E8E7E"];
+  const start = chartStart(H);
+  const series = ids.map((id, k) => {
+    const s = D.series[id]; let i = idxAtOrBefore(s.t, start); if (i < 0) i = 0;
+    const base = s.v[i];
+    return { name: ITEMS[id].name, type: "line", showSymbol: false, lineStyle: { width: 1.6 }, color: palette[k % palette.length],
+      data: s.t.slice(i).map((t, j) => [t * DAY, s.v[i + j] != null ? +(s.v[i + j] / base * 100).toFixed(2) : null]) };
+  });
+  mountChart(node, Object.assign(b, {
+    legend: { top: 0, left: 0, textStyle: { color: b._c.ink }, icon: "roundRect", itemWidth: 12, itemHeight: 4 },
+    grid: Object.assign(b.grid, { top: 34 }),
+    tooltip: Object.assign(b.tooltip, { valueFormatter: v => v == null ? "–" : v.toFixed(1) }),
+    xAxis: { type: "time", axisLabel: { color: b._c.muted, hideOverlap: true }, axisLine: { lineStyle: { color: b._c.rule } } },
+    yAxis: { type: "value", scale: true, axisLabel: { color: b._c.muted }, splitLine: { lineStyle: { color: b._c.rule } } },
+    series
+  }), 300);
+}
+
+// ---------- hero heatmap ----------
+function renderHeat() {
+  const heat = $("#heat"); heat.innerHTML = "";
+  $("#heroTitle").textContent = "Cross-asset returns, " + HLABEL[H];
+  const rows = [];
+  if (D.portfolio) {
+    const pr = portfolioReturns();
+    if (pr) rows.push({ label: "Your portfolio", cells: [
+      { name: "Portfolio", x: pr.p, kind: "price", onclick: () => $("#sec-portfolio").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }) },
+      ...(pr.b != null ? [{ name: D.benchmark_name, x: pr.b, kind: "price", onclick: () => $("#sec-portfolio").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }) }] : [])] });
+  }
+  D.groups.filter(g => g.heatmap).forEach(g => rows.push({ label: g.name,
+    cells: g.items.map(it => ({ name: it.name, x: change(it.id, H), kind: it.kind, id: it.id })) }));
+  const all = rows.flatMap(r => r.cells.map(c => Math.abs(c.x))).filter(x => x != null && isFinite(x)).sort((a, b) => a - b);
+  const scale = Math.max(all.length ? all[Math.floor(all.length * 0.9)] : 1, 0.25);
+  rows.forEach(r => {
+    heat.append(el("div", { class: "rowlabel" }, esc(r.label)));
+    const box = el("div", { class: "cells" });
+    r.cells.forEach(c => {
+      const col = heatColor(c.x, scale), fakeIt = { kind: c.kind };
+      const b = el("button", { class: "cell" + (c.x == null ? " na" : ""), type: "button",
+        title: c.x == null ? "Not enough history for this horizon" : `${c.name}: ${fmtChange(c.x, fakeIt)}`,
+        style: `background:${col.bg};color:${col.fg}` },
+        `<span class="n">${esc(c.name)}</span><span class="x">${fmtChange(c.x, fakeIt)}</span>`);
+      if (c.onclick) b.onclick = c.onclick; else if (c.id && c.x != null) b.onclick = () => openDetail(c.id);
+      box.append(b);
+    });
+    heat.append(box);
+  });
+  $("#legLo").textContent = "−" + scale.toFixed(1) + "%";
+  $("#legHi").textContent = "+" + scale.toFixed(1) + "%";
+}
+
+// ---------- portfolio ----------
+function portfolioReturns() {
+  const P = D.portfolio; if (!P) return null;
+  const e = P.t.length - 1, i = startIndex(P.t, H);
+  if (i < 0 || i >= e) return { p: null, b: null, i: -1, e };
+  return { p: (P.total[e] / P.total[i] - 1) * 100, b: P.bench ? (P.bench[e] / P.bench[i] - 1) * 100 : null, i, e };
+}
+function renderPortfolio(root) {
+  const sec = el("section", { class: "grp", id: "sec-portfolio" }, "<h2>Your portfolio</h2>");
+  root.append(sec);
+  const P = D.portfolio;
+  if (!P) {
+    sec.append(el("p", { class: "empty" }, "Add your holdings to see portfolio performance, allocation and each position's contribution. Paste them into the <code>HOLDINGS_CSV</code> repository secret in the format shown in <code>holdings.example.csv</code>; the next build picks them up."));
+    return;
+  }
+  sec.append(el("p", { class: "note" }, "Performance assumes today's holdings were held throughout the period, with no trades or cash flows. Unpriced holdings count toward allocation at their stated value."));
+  const r = portfolioReturns(), pctIt = { kind: "price" };
+  const kp = el("div", { class: "kpis" });
+  const kpi = (l, v, cls = "") => kp.append(el("div", { class: "kpi" }, `<div class="l">${esc(l)}</div><div class="v ${cls}">${v}</div>`));
+  if (r.i < 0) {
+    kpi("Portfolio, " + HLABEL[H], "–");
+    sec.append(kp, el("p", { class: "note" }, `Portfolio history starts ${fmtDate(P.history_start)}, after the start of this horizon.`));
+  } else {
+    kpi("Portfolio, " + HLABEL[H], fmtChange(r.p, pctIt), signClass(r.p));
+    if (r.b != null) {
+      kpi(D.benchmark_name, fmtChange(r.b, pctIt), signClass(r.b));
+      const d = (r.p - r.b) * 100;
+      kpi("Difference", signed(d, 0, " bp"), signClass(d));
+    }
+    if (P.scale) {
+      const dv = P.scale * (P.total[r.e] - P.total[r.i]);
+      kpi("Value", "$" + Math.round(P.scale).toLocaleString("en-US"));
+      kpi("Change", (dv >= 0 ? "+$" : "−$") + Math.round(Math.abs(dv)).toLocaleString("en-US"), signClass(dv));
+    }
+    sec.append(kp);
+  }
+
+  const cols = el("div", { class: "cols wide-left" });
+  const left = el("div", { class: "panel" }, "<h3>Growth of 100</h3>");
+  const cnode = el("div", { class: "chart" }); left.append(cnode);
+  const cap = windowNote(H); if (cap) left.append(el("div", { class: "caption" }, cap));
+  const right = el("div", { class: "panel" }, "<h3>Allocation by asset class</h3>");
+  cols.append(left, right); sec.append(cols);
+
+  // chart
+  const start = chartStart(H); let i0 = idxAtOrBefore(P.t, start); if (i0 < 0) i0 = 0;
+  const b = baseOpts();
+  const mk = (arr, name, color, dash) => ({ name, type: "line", showSymbol: false, color, lineStyle: { width: dash ? 1.4 : 2, type: dash ? "dashed" : "solid" },
+    data: P.t.slice(i0).map((t, j) => [t * DAY, +(arr[i0 + j] / arr[i0] * 100).toFixed(2)]) });
+  const ser = [mk(P.total, "Portfolio", css("--port"))];
+  if (P.bench) ser.push(mk(P.bench, D.benchmark_name, css("--bench"), true));
+  mountChart(cnode, Object.assign(b, {
+    legend: { top: 0, left: 0, textStyle: { color: b._c.ink }, icon: "roundRect", itemWidth: 12, itemHeight: 4 },
+    grid: Object.assign(b.grid, { top: 34 }),
+    tooltip: Object.assign(b.tooltip, { valueFormatter: v => v.toFixed(1) }),
+    xAxis: { type: "time", axisLabel: { color: b._c.muted, hideOverlap: true }, axisLine: { lineStyle: { color: b._c.rule } } },
+    yAxis: { type: "value", scale: true, axisLabel: { color: b._c.muted }, splitLine: { lineStyle: { color: b._c.rule } } },
+    series: ser
+  }), 300);
+
+  // allocation
+  const byCls = {};
+  P.holdings.forEach(h => { byCls[h.cls] = (byCls[h.cls] || 0) + (h.w || 0); });
+  const tot = Object.values(byCls).reduce((a, b) => a + b, 0) || 1;
+  const pal = [css("--port"), css("--gain"), css("--loss"), css("--bench"), "#3E8E7E", "#B08A2E", "#8C5A7A", "#4F6D8F"];
+  const cls = Object.entries(byCls).sort((a, b) => b[1] - a[1]);
+  const bar = el("div", { class: "alloc", role: "img", "aria-label": cls.map(([k, w]) => `${k} ${(w / tot * 100).toFixed(0)}%`).join(", ") });
+  const leg = el("div", { class: "alloc-legend" });
+  cls.forEach(([k, w], j) => {
+    const c = pal[j % pal.length];
+    bar.append(el("span", { style: `width:${w / tot * 100}%;background:${c}` }));
+    leg.append(el("span", {}, `<i style="background:${c}"></i>${esc(k)} ${(w / tot * 100).toFixed(1)}%`));
+  });
+  right.append(bar, leg);
+
+  // holdings
+  const rows = P.holdings.map(h => {
+    let ret = null, con = null;
+    if (h.v && r.i >= 0) {
+      const a = h.v[r.i], z = h.v[r.e];
+      if (a) ret = (z / a - 1) * 100;
+      con = (z - a) / P.total[r.i] * 10000;
+    }
+    return Object.assign({}, h, { ret, con });
+  }).sort((a, b) => (b.con ?? -1e9) - (a.con ?? -1e9));
+  const tw = el("div", { class: "panel", style: "margin-top:24px" }, "<h3>Holdings, ranked by contribution</h3>");
+  const wrap = el("div", { class: "holdings tablewrap" });
+  const t = el("table", { class: "lv" });
+  t.innerHTML = `<thead><tr><th>Holding</th><th class="l">Asset class</th><th>Weight</th><th>Return</th><th>Contribution</th></tr></thead>`;
+  const tb = el("tbody");
+  rows.forEach(h => {
+    tb.append(el("tr", {}, `<td>${esc(h.name)}${h.name !== h.id ? ` <span class="stale">${esc(h.id)}</span>` : ""}</td><td class="l">${esc(h.cls)}</td><td>${h.w != null ? (h.w / tot * 100).toFixed(1) + "%" : "–"}</td>` +
+      (h.v ? `<td class="${signClass(h.ret)}">${fmtChange(h.ret, pctIt)}</td><td class="${signClass(h.con)}">${signed(h.con, 0, " bp")}</td>`
+           : `<td class="stale" colspan="2">Not priced</td>`)));
+  });
+  t.append(tb); wrap.append(t); tw.append(wrap); sec.append(tw);
+  if (P.missing && P.missing.length) sec.append(el("p", { class: "warn" }, "No price data for " + P.missing.map(esc).join(", ") + ". These holdings are left out of this page until prices return."));
+}
+
+// ---------- group views ----------
+function levelsTable(g, ids, minH = "1M") {
+  const wrap = el("div", { class: "tablewrap" });
+  const t = el("table", { class: "lv" });
+  t.innerHTML = `<thead><tr><th>${esc(g.name === "Currencies" ? "Rate" : "Series")}</th><th>Trend</th><th>Latest</th><th>Change</th></tr></thead>`;
+  const tb = el("tbody");
+  ids.forEach(id => {
+    const it = ITEMS[id], x = change(id, H), ld = lastDay(id);
+    const stale = D.as_of - ld > 3 ? `<br><span class="stale">as of ${fmtDate(ld)}</span>` : "";
+    const tr = el("tr", { class: "click", tabindex: "0", role: "button", "aria-label": `${it.name}, open chart` },
+      `<td>${esc(it.name)}${stale}</td><td class="spark">${sparkline(id, H, 120, 28, minH)}</td><td>${fmtLevel(last(id), it)}</td><td class="${textClass(fmtChange(x, it))}">${fmtChange(x, it)}</td>`);
+    tr.onclick = () => openDetail(id);
+    tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(id); } };
+    tb.append(tr);
+  });
+  t.append(tb); wrap.append(t);
+  return wrap;
+}
+function renderGroup(root, g) {
+  const sec = el("section", { class: "grp", id: "sec-" + g.id }, `<h2>${esc(g.name)}</h2>`);
+  root.append(sec);
+  if (g.note) sec.append(el("p", { class: "note" }, esc(g.note)));
+  const ids = g.items.map(i => i.id);
+
+  if (g.view === "bars") {
+    const heads = g.items.filter(i => i.headline).map(i => i.id);
+    const cols = el("div", { class: heads.length ? "cols" : (root.classList.contains("pair") ? "" : "solo") });
+    const p1 = el("div", { class: "panel" }, `<h3>Return, ${HLABEL[H]}</h3>`), n1 = el("div", { class: "chart" });
+    p1.append(n1); cols.append(p1); sec.append(cols);
+    const shown = barChart(n1, ids);
+    if (shown < ids.length) p1.append(el("div", { class: "caption" }, `${ids.length - shown} series have less history than this horizon and are hidden.`));
+    if (heads.length) {
+      const p2 = el("div", { class: "panel" }, "<h3>Growth of 100</h3>"), n2 = el("div", { class: "chart" });
+      p2.append(n2); cols.append(p2);
+      indexedChart(n2, heads);
+      const cap = windowNote(H); if (cap) p2.append(el("div", { class: "caption" }, cap));
+    }
+  } else if (g.view === "curve") {
+    const cols = el("div", { class: "cols" });
+    const p1 = el("div", { class: "panel" }, "<h3>Yield curve</h3>"), n1 = el("div", { class: "chart" });
+    p1.append(n1);
+    const p2 = el("div", { class: "panel" }, `<h3>Levels and change, ${HLABEL[H]}</h3>`);
+    p2.append(levelsTable(g, ids));
+    cols.append(p1, p2); sec.append(cols);
+    curveChart(n1, g.curve || []);
+  } else if (g.view === "levels") {
+    const p = el("div", { class: "panel" + (root.classList.contains("pair") ? "" : " solo") }, `<h3>Levels and change, ${HLABEL[H]}</h3>`);
+    p.append(levelsTable(g, ids));
+    const cap = windowNote(H); if (cap) p.append(el("div", { class: "caption" }, "Trend lines show the past month for shorter horizons."));
+    sec.append(p);
+  } else if (g.view === "macro") {
+    const minH = "3Y";
+    sec.append(el("p", { class: "note" }, `Latest release and change from the prior release. Trend lines cover the ${HLABEL[H === "5Y" ? "5Y" : minH]}.`));
+    const tiles = el("div", { class: "tiles" });
+    g.items.forEach(it => {
+      const s = D.series[it.id], n = s.v.length, v = s.v[n - 1], p = s.v[n - 2];
+      const d = v - p, dTxt = signed(d, it.decimals ?? 1, it.unit === "%" ? " pts" : it.unit === "k" ? "k" : "");
+      const b = el("button", { class: "tile", type: "button" },
+        `<div class="n">${esc(it.name)}</div><div class="v">${fmtLevel(v, it)}</div><div class="p">${esc(period(s.t[n - 1], it.freq))}, ${dTxt} from prior</div>${sparkline(it.id, H, 180, 34, minH)}`);
+      b.onclick = () => openDetail(it.id);
+      tiles.append(b);
+    });
+    sec.append(tiles);
+  }
+}
+function curveChart(node, curve) {
+  const b = baseOpts();
+  const pts = when => curve.map(c => { const s = D.series[c.id]; const i = when === "now" ? s.t.length - 1 : startIndex(s.t, H); return i >= 0 ? s.v[i] : null; });
+  const now = pts("now"), then = pts("then");
+  const d0 = D.series[curve.find(c => c.label === "10Y")?.id || curve[0].id];
+  const tNow = d0.t[d0.t.length - 1], iThen = startIndex(d0.t, H);
+  mountChart(node, Object.assign(b, {
+    legend: { top: 0, left: 0, textStyle: { color: b._c.ink }, icon: "roundRect", itemWidth: 12, itemHeight: 4 },
+    grid: Object.assign(b.grid, { top: 34 }),
+    tooltip: Object.assign(b.tooltip, { valueFormatter: v => v == null ? "–" : v.toFixed(2) + "%" }),
+    xAxis: { type: "category", data: curve.map(c => c.label), axisLabel: { color: b._c.muted }, axisLine: { lineStyle: { color: b._c.rule } } },
+    yAxis: { type: "value", scale: true, axisLabel: { color: b._c.muted, formatter: v => v.toFixed(1) + "%" }, splitLine: { lineStyle: { color: b._c.rule } } },
+    series: [
+      { name: fmtDate(tNow), type: "line", data: now, color: css("--ink"), lineStyle: { width: 2 }, symbolSize: 5 },
+      ...(iThen >= 0 ? [{ name: fmtDate(d0.t[iThen]), type: "line", data: then, color: css("--bench"), lineStyle: { width: 1.6, type: "dashed" }, symbolSize: 4 }] : [])
+    ]
+  }), 300);
+}
+
+// ---------- detail dialog ----------
+let detailChart = null, detailId = null;
+function openDetail(id) {
+  detailId = id;
+  const it = ITEMS[id], s = D.series[id], dlg = $("#detail");
+  $("#dTitle").textContent = it.name;
+  $("#dSub").textContent = `${it.group.name}, ${it.source}${it.symbol ? " " + it.symbol : ""}. Latest ${fmtLevel(last(id), it)} on ${fmtDate(lastDay(id))}.`;
+  const hz = $("#dHz"); hz.innerHTML = "";
+  {
+    HORIZONS.forEach(h => {
+      const x = change(id, h);
+      const b = el("button", { type: "button", "aria-pressed": h === H ? "true" : "false", title: "Chart the " + HLABEL[h] },
+        `<small>${h}</small><span class="${textClass(fmtChange(x, it, h))}">${fmtChange(x, it, h)}</span>`);
+      b.onclick = () => setHorizon(h);
+      hz.append(b);
+    });
+  }
+  if (!dlg.open) dlg.showModal();
+  if (detailChart) detailChart.dispose();
+  const minH = it.kind === "macro" ? "3Y" : "1M";
+  let i = idxAtOrBefore(s.t, chartStart(H, minH)); if (i < 0) i = 0;
+  const b = baseOpts(); delete b._c;
+  const muted = css("--muted"), rule = css("--rule");
+  detailChart = echarts.init($("#dChart"), null, { renderer: "svg" });
+  detailChart.setOption(Object.assign(b, {
+    tooltip: Object.assign(b.tooltip, { valueFormatter: v => fmtLevel(v, it) }),
+    xAxis: { type: "time", axisLabel: { color: muted, hideOverlap: true }, axisLine: { lineStyle: { color: rule } } },
+    yAxis: { type: "value", scale: true, axisLabel: { color: muted }, splitLine: { lineStyle: { color: rule } } },
+    series: [{ name: it.name, type: "line", showSymbol: it.kind === "macro" && it.freq !== "d" && it.freq !== "w", symbolSize: 4, color: css("--ink"),
+      lineStyle: { width: 1.8 }, areaStyle: { color: css("--ink"), opacity: 0.06 }, data: s.t.slice(i).map((t, j) => [t * DAY, s.v[i + j]]) }]
+  }));
+  $("#dCap").textContent = (horizonStart(H) > horizonStart(minH) ? `Chart shows the ${HLABEL[minH]}. ` : `Chart shows the ${HLABEL[H]}. `) + "Select a horizon above to change the window." + (it.kind === "macro" ? " For economic data, 1D is the change from the prior release." : "");
+}
+$("#detail").addEventListener("close", () => { if (detailChart) { detailChart.dispose(); detailChart = null; } detailId = null; });
+
+// ---------- page ----------
+function render() {
+  charts.forEach(c => c.dispose()); charts = [];
+  document.querySelectorAll("#ruler button").forEach(b => b.setAttribute("aria-pressed", b.dataset.h === H ? "true" : "false"));
+  renderHeat();
+  const root = $("#sections"); root.innerHTML = "";
+  renderPortfolio(root);
+  // single-panel groups sit side by side in pairs; wide groups take the full row
+  const solo = g => g.view === "levels" || (g.view === "bars" && !g.items.some(i => i.headline));
+  const gs = D.groups;
+  for (let k = 0; k < gs.length; k++) {
+    if (solo(gs[k]) && k + 1 < gs.length && solo(gs[k + 1])) {
+      const row = el("div", { class: "cols pair" }); root.append(row);
+      renderGroup(row, gs[k]); renderGroup(row, gs[k + 1]); k++;
+    } else renderGroup(root, gs[k]);
+  }
+  if (detailId && $("#detail").open) openDetail(detailId);
+}
+function setHorizon(h) {
+  H = h;
+  try { localStorage.setItem("mm-horizon", h); } catch (e) {}
+  try { history.replaceState(null, "", "#h=" + h); } catch (e) {}
+  render();
+}
+function init() {
+  document.title = D.title;
+  $("#title").textContent = D.title;
+  $("#asof").textContent = "Markets as of " + fmtDate(D.as_of);
+  if (D.demo) $("#banner").innerHTML = '<div class="demo-banner">Demo data: every number on this page is synthetic.</div>';
+  const ruler = $("#ruler");
+  HORIZONS.forEach(h => {
+    const b = el("button", { type: "button", "data-h": h, "aria-pressed": "false", title: HLABEL[h] }, h);
+    b.onclick = () => setHorizon(h);
+    ruler.append(b);
+  });
+  const fromHash = (location.hash.match(/h=([0-9A-Z]+)/) || [])[1];
+  let saved = null; try { saved = localStorage.getItem("mm-horizon"); } catch (e) {}
+  H = HORIZONS.includes(fromHash) ? fromHash : HORIZONS.includes(saved) ? saved : "YTD";
+  const gen = new Date(D.generated_at);
+  $("#foot").innerHTML =
+    `<p>Built ${gen.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}. Market data from Yahoo Finance; rates, credit spreads and economic data from FRED (Federal Reserve Bank of St. Louis). ETF returns are US-dollar total returns. Treasury yields and credit spreads usually lag markets by one business day.</p>` +
+    (D.dropped && D.dropped.length ? `<p>Left out on this run for lack of data: ${D.dropped.map(esc).join(", ")}.</p>` : "") +
+    `<p>For information only; not investment advice.</p>`;
+  render();
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { charts.forEach(c => c.resize()); if (detailChart) detailChart.resize(); }, 150); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+}
+if (window.echarts) init();
+else document.getElementById("sections").innerHTML = '<p class="empty">Charts could not load because the charting library (cdn.jsdelivr.net) is unreachable from this network. Reload the page to try again.</p>';
+})();
+</script>
+</body>
+</html>

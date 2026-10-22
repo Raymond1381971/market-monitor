@@ -1,0 +1,197 @@
+# Market monitor configuration
+# ---------------------------------------------------------------------------
+# Each group becomes a section of the dashboard. Items with no data on a given
+# run are dropped from the page (never approximated) and listed in the footer.
+#
+# Item fields
+#   id        unique key (letters, digits, underscore)
+#   name      label shown on the page
+#   source    yahoo | fred
+#   symbol    Yahoo ticker or FRED series id
+#   kind      price  -> change shown as % return (ETFs are total return, USD)
+#             yield  -> value in %, change shown in bp
+#             spread -> value in bp, change shown in bp
+#             level  -> change shown in points
+#             macro  -> latest release vs prior release
+#   scale     multiply raw values (e.g. 100 turns a % spread into bp)
+#   transform yoy (monthly % change vs 12 months earlier) | diff (change vs prior obs)
+#   unit      suffix for levels ("%", "bp", "k", "")
+#   decimals  decimals for levels
+#   freq      d | w | m | q  (macro only; sets how the release period is labelled)
+#   headline  true -> included in the group's indexed line chart
+#
+# Group fields
+#   view      bars | levels | curve | macro
+#   heatmap   true -> row in the cross-asset returns grid at the top of the page
+
+title: Market monitor
+
+benchmark:
+  name: 60/40 ACWI / AGG
+  weights: {ACWI: 0.60, AGG: 0.40}   # daily rebalanced blend; Yahoo tickers
+
+portfolio:
+  show_dollar_values: false          # true puts $ totals in the page (see README: privacy)
+
+groups:
+  - id: equities
+    name: Equities
+    view: bars
+    heatmap: true
+    note: US-dollar total returns of index ETFs.
+    items:
+      - {id: acwi, name: All-country world, source: yahoo, symbol: ACWI, kind: price, headline: true}
+      - {id: spy,  name: S&P 500, source: yahoo, symbol: SPY, kind: price, headline: true}
+      - {id: qqq,  name: Nasdaq 100, source: yahoo, symbol: QQQ, kind: price}
+      - {id: rsp,  name: S&P 500 equal weight, source: yahoo, symbol: RSP, kind: price}
+      - {id: iwm,  name: Russell 2000, source: yahoo, symbol: IWM, kind: price}
+      - {id: efa,  name: Developed ex-US, source: yahoo, symbol: EFA, kind: price, headline: true}
+      - {id: vgk,  name: Europe, source: yahoo, symbol: VGK, kind: price}
+      - {id: ewj,  name: Japan, source: yahoo, symbol: EWJ, kind: price}
+      - {id: ewu,  name: UK, source: yahoo, symbol: EWU, kind: price}
+      - {id: eem,  name: Emerging markets, source: yahoo, symbol: EEM, kind: price, headline: true}
+      - {id: mchi, name: China, source: yahoo, symbol: MCHI, kind: price}
+      - {id: inda, name: India, source: yahoo, symbol: INDA, kind: price}
+
+  - id: style
+    name: Style and factors
+    view: bars
+    heatmap: true
+    items:
+      - {id: iwf,  name: US growth, source: yahoo, symbol: IWF, kind: price}
+      - {id: iwd,  name: US value, source: yahoo, symbol: IWD, kind: price}
+      - {id: mtum, name: Momentum, source: yahoo, symbol: MTUM, kind: price}
+      - {id: qual, name: Quality, source: yahoo, symbol: QUAL, kind: price}
+      - {id: usmv, name: Minimum volatility, source: yahoo, symbol: USMV, kind: price}
+      - {id: vym,  name: High dividend, source: yahoo, symbol: VYM, kind: price}
+
+  - id: sectors
+    name: US sectors
+    view: bars
+    heatmap: true
+    items:
+      - {id: xlk,  name: Technology, source: yahoo, symbol: XLK, kind: price}
+      - {id: xlc,  name: Communication services, source: yahoo, symbol: XLC, kind: price}
+      - {id: xly,  name: Consumer discretionary, source: yahoo, symbol: XLY, kind: price}
+      - {id: xlf,  name: Financials, source: yahoo, symbol: XLF, kind: price}
+      - {id: xlv,  name: Health care, source: yahoo, symbol: XLV, kind: price}
+      - {id: xli,  name: Industrials, source: yahoo, symbol: XLI, kind: price}
+      - {id: xle,  name: Energy, source: yahoo, symbol: XLE, kind: price}
+      - {id: xlb,  name: Materials, source: yahoo, symbol: XLB, kind: price}
+      - {id: xlu,  name: Utilities, source: yahoo, symbol: XLU, kind: price}
+      - {id: xlre, name: Real estate, source: yahoo, symbol: XLRE, kind: price}
+      - {id: xlp,  name: Consumer staples, source: yahoo, symbol: XLP, kind: price}
+
+  - id: bonds
+    name: Fixed income
+    view: bars
+    heatmap: true
+    note: US-dollar total returns of bond ETFs.
+    items:
+      - {id: agg,  name: US aggregate, source: yahoo, symbol: AGG, kind: price, headline: true}
+      - {id: shy,  name: Treasuries 1-3y, source: yahoo, symbol: SHY, kind: price}
+      - {id: ief,  name: Treasuries 7-10y, source: yahoo, symbol: IEF, kind: price}
+      - {id: tlt,  name: Treasuries 20y+, source: yahoo, symbol: TLT, kind: price, headline: true}
+      - {id: tip,  name: TIPS, source: yahoo, symbol: TIP, kind: price}
+      - {id: mub,  name: Municipals, source: yahoo, symbol: MUB, kind: price}
+      - {id: lqd,  name: IG corporate, source: yahoo, symbol: LQD, kind: price}
+      - {id: hyg,  name: High yield, source: yahoo, symbol: HYG, kind: price, headline: true}
+      - {id: bkln, name: Leveraged loans, source: yahoo, symbol: BKLN, kind: price}
+      - {id: emb,  name: EM sovereign (USD), source: yahoo, symbol: EMB, kind: price}
+
+  - id: rates
+    name: Treasury yields
+    view: curve
+    note: FRED daily Treasury yields usually post one business day after the market close.
+    curve:  # tenor points for the curve chart
+      - {id: c1m,  label: 1M,  source: fred, symbol: DGS1MO}
+      - {id: c3m,  label: 3M,  source: fred, symbol: DGS3MO}
+      - {id: c6m,  label: 6M,  source: fred, symbol: DGS6MO}
+      - {id: c1y,  label: 1Y,  source: fred, symbol: DGS1}
+      - {id: c2y,  label: 2Y,  source: fred, symbol: DGS2}
+      - {id: c3y,  label: 3Y,  source: fred, symbol: DGS3}
+      - {id: c5y,  label: 5Y,  source: fred, symbol: DGS5}
+      - {id: c7y,  label: 7Y,  source: fred, symbol: DGS7}
+      - {id: c10y, label: 10Y, source: fred, symbol: DGS10}
+      - {id: c20y, label: 20Y, source: fred, symbol: DGS20}
+      - {id: c30y, label: 30Y, source: fred, symbol: DGS30}
+    items:
+      - {id: y2,   name: 2-year, source: fred, symbol: DGS2, kind: yield, unit: "%", decimals: 2}
+      - {id: y10,  name: 10-year, source: fred, symbol: DGS10, kind: yield, unit: "%", decimals: 2}
+      - {id: y30,  name: 30-year, source: fred, symbol: DGS30, kind: yield, unit: "%", decimals: 2}
+      - {id: s2s10, name: 2s10s slope, source: fred, symbol: T10Y2Y, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: s3m10, name: 3m10y slope, source: fred, symbol: T10Y3M, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: r10,  name: 10-year real (TIPS), source: fred, symbol: DFII10, kind: yield, unit: "%", decimals: 2}
+      - {id: be10, name: 10-year breakeven inflation, source: fred, symbol: T10YIE, kind: yield, unit: "%", decimals: 2}
+
+  - id: credit
+    name: Credit spreads
+    view: levels
+    note: ICE BofA option-adjusted spreads via FRED, which currently limits these series to roughly three years of history.
+    items:
+      - {id: ig,   name: US investment grade, source: fred, symbol: BAMLC0A0CM, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: bbb,  name: US BBB, source: fred, symbol: BAMLC0A4CBBB, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: hy,   name: US high yield, source: fred, symbol: BAMLH0A0HYM2, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: ccc,  name: US CCC and lower, source: fred, symbol: BAMLH0A3HYC, kind: spread, scale: 100, unit: bp, decimals: 0}
+      - {id: emc,  name: EM corporate, source: fred, symbol: BAMLEMCBPIOAS, kind: spread, scale: 100, unit: bp, decimals: 0}
+
+  - id: fx
+    name: Currencies
+    view: levels
+    note: Change in the quoted rate. USD/JPY up means a stronger dollar; EUR/USD up means a weaker dollar.
+    items:
+      - {id: dxy,    name: US dollar index, source: yahoo, symbol: DX-Y.NYB, kind: price, decimals: 2}
+      - {id: eurusd, name: EUR/USD, source: yahoo, symbol: EURUSD=X, kind: price, decimals: 4}
+      - {id: gbpusd, name: GBP/USD, source: yahoo, symbol: GBPUSD=X, kind: price, decimals: 4}
+      - {id: usdjpy, name: USD/JPY, source: yahoo, symbol: JPY=X, kind: price, decimals: 2}
+      - {id: usdchf, name: USD/CHF, source: yahoo, symbol: CHF=X, kind: price, decimals: 4}
+      - {id: audusd, name: AUD/USD, source: yahoo, symbol: AUDUSD=X, kind: price, decimals: 4}
+      - {id: usdcny, name: USD/CNY, source: yahoo, symbol: CNY=X, kind: price, decimals: 4}
+      - {id: usdmxn, name: USD/MXN, source: yahoo, symbol: MXN=X, kind: price, decimals: 3}
+
+  - id: alts
+    name: Commodities and alternatives
+    view: bars
+    heatmap: true
+    note: Commodity futures are front-month continuous contracts, so returns include roll effects.
+    items:
+      - {id: gold,   name: Gold, source: yahoo, symbol: GC=F, kind: price, headline: true}
+      - {id: silver, name: Silver, source: yahoo, symbol: SI=F, kind: price}
+      - {id: wti,    name: WTI crude, source: yahoo, symbol: CL=F, kind: price, headline: true}
+      - {id: brent,  name: Brent crude, source: yahoo, symbol: BZ=F, kind: price}
+      - {id: natgas, name: US natural gas, source: yahoo, symbol: NG=F, kind: price}
+      - {id: copper, name: Copper, source: yahoo, symbol: HG=F, kind: price, headline: true}
+      - {id: dbc,    name: Broad commodities, source: yahoo, symbol: DBC, kind: price}
+      - {id: vnq,    name: US REITs, source: yahoo, symbol: VNQ, kind: price}
+      - {id: bizd,   name: BDCs (private credit proxy), source: yahoo, symbol: BIZD, kind: price}
+      - {id: btc,    name: Bitcoin, source: yahoo, symbol: BTC-USD, kind: price, headline: true}
+      - {id: eth,    name: Ether, source: yahoo, symbol: ETH-USD, kind: price}
+
+  - id: risk
+    name: Volatility and financial conditions
+    view: levels
+    note: Financial conditions indices are weekly; above zero means tighter or more stressed than average.
+    items:
+      - {id: vix,   name: VIX (equity vol), source: yahoo, symbol: ^VIX, kind: level, decimals: 1}
+      - {id: move,  name: MOVE (Treasury vol), source: yahoo, symbol: ^MOVE, kind: level, decimals: 1}
+      - {id: vvix,  name: VVIX (vol of VIX), source: yahoo, symbol: ^VVIX, kind: level, decimals: 1}
+      - {id: skew,  name: Cboe SKEW, source: yahoo, symbol: ^SKEW, kind: level, decimals: 1}
+      - {id: nfci,  name: Chicago Fed financial conditions, source: fred, symbol: NFCI, kind: level, decimals: 2}
+      - {id: stlfsi, name: St. Louis Fed financial stress, source: fred, symbol: STLFSI4, kind: level, decimals: 2}
+
+  - id: macro
+    name: US economy
+    view: macro
+    items:
+      - {id: ffr,    name: Fed funds (effective), source: fred, symbol: DFF, kind: macro, unit: "%", decimals: 2, freq: d}
+      - {id: cpi,    name: CPI inflation, source: fred, symbol: CPIAUCSL, kind: macro, transform: yoy, unit: "%", decimals: 1, freq: m}
+      - {id: ccpi,   name: Core CPI inflation, source: fred, symbol: CPILFESL, kind: macro, transform: yoy, unit: "%", decimals: 1, freq: m}
+      - {id: cpce,   name: Core PCE inflation, source: fred, symbol: PCEPILFE, kind: macro, transform: yoy, unit: "%", decimals: 1, freq: m}
+      - {id: gdp,    name: Real GDP growth (annualized), source: fred, symbol: A191RL1Q225SBEA, kind: macro, unit: "%", decimals: 1, freq: q}
+      - {id: urate,  name: Unemployment rate, source: fred, symbol: UNRATE, kind: macro, unit: "%", decimals: 1, freq: m}
+      - {id: nfp,    name: "Payrolls, monthly change", source: fred, symbol: PAYEMS, kind: macro, transform: diff, unit: k, decimals: 0, freq: m}
+      - {id: claims, name: Initial jobless claims, source: fred, symbol: ICSA, kind: macro, scale: 0.001, unit: k, decimals: 0, freq: w}
+      - {id: indpro, name: "Industrial production, year over year", source: fred, symbol: INDPRO, kind: macro, transform: yoy, unit: "%", decimals: 1, freq: m}
+      - {id: retail, name: "Retail sales, year over year", source: fred, symbol: RSAFS, kind: macro, transform: yoy, unit: "%", decimals: 1, freq: m}
+      - {id: mort,   name: 30-year mortgage rate, source: fred, symbol: MORTGAGE30US, kind: macro, unit: "%", decimals: 2, freq: w}
+      - {id: sent,   name: Consumer sentiment (UMich), source: fred, symbol: UMCSENT, kind: macro, unit: "", decimals: 1, freq: m}

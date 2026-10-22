@@ -1,0 +1,11 @@
+ticker,quantity,value,asset_class,name
+VTI,1200,,US equity,Vanguard Total Stock Market
+VXUS,1500,,International equity,Vanguard Total International
+QQQ,150,,US equity,Invesco QQQ
+BND,1800,,Fixed income,Vanguard Total Bond
+TIP,400,,Fixed income,iShares TIPS
+MUB,600,,Fixed income,iShares National Muni
+GLD,120,,Real assets,SPDR Gold
+VNQ,300,,Real assets,Vanguard Real Estate
+CASH,,85000,Cash,Money market and checking
+,,250000,Private and illiquid,Deferred compensation (unpriced)
